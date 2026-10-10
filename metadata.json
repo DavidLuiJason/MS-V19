@@ -1,0 +1,6 @@
+{
+  "name": "MarketScope",
+  "description": "High-performance client-side market data collector, live liquidity tracker, and technical pattern suite.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
