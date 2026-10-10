@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { History, Play, X, AlertTriangle } from 'lucide-react';
 import { useAppStore } from '../../state/store';
+import { db } from '../../data/db';
 import { getSetting, setSetting } from '../../data/repositories';
 import {
   countStoredCandles,
@@ -8,10 +9,22 @@ import {
   type ReplayResult,
 } from '../../lib/replayRunner';
 
+function formatAge(ms: number): string {
+  const sec = Math.floor(ms / 1000);
+  if (sec < 60) return `${sec} seconds ago`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min} minute${min === 1 ? '' : 's'} ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr} hour${hr === 1 ? '' : 's'} ago`;
+  const days = Math.floor(hr / 24);
+  return `${days} day${days === 1 ? '' : 's'} ago`;
+}
+
 export const OfflineReplayCard: React.FC = () => {
   const { settings } = useAppStore();
 
-  const [mode, setMode] = useState<'live' | 'offline'>('live');
+  const [mode, setMode] = useState<'auto' | 'live' | 'offline'>('auto');
+  const [dataStatusText, setDataStatusText] = useState<string>('Checking data status...');
   const [selectedSym, setSelectedSym] = useState<string>('BTCUSDT');
   const [selectedTf, setSelectedTf] = useState<string>('1m');
   const [rangeDays, setRangeDays] = useState<number | null>(null);
@@ -42,9 +55,9 @@ export const OfflineReplayCard: React.FC = () => {
 
   useEffect(() => {
     async function init() {
-      const savedMode = await getSetting<string>('predLabMode', 'live');
-      if (savedMode === 'offline' || savedMode === 'live') {
-        setMode(savedMode);
+      const savedMode = await getSetting<string>('predLabMode', 'auto');
+      if (savedMode === 'auto' || savedMode === 'offline' || savedMode === 'live') {
+        setMode(savedMode as any);
       }
       const savedRes = await getSetting<ReplayResult | null>('replayResult', null);
       if (savedRes) {
@@ -52,6 +65,30 @@ export const OfflineReplayCard: React.FC = () => {
       }
     }
     init();
+  }, []);
+
+  useEffect(() => {
+    const checkStatus = async () => {
+      try {
+        const newestCandle = await db.candles.orderBy('t').last();
+        if (!newestCandle) {
+          setDataStatusText('Data right now: OFFLINE (no candles stored)');
+          return;
+        }
+        const ageMs = Math.max(0, Date.now() - newestCandle.t);
+        if (ageMs <= 300000) {
+          const sec = Math.floor(ageMs / 1000);
+          setDataStatusText(`Data right now: LIVE (newest candle ${sec} seconds ago)`);
+        } else {
+          setDataStatusText(`Data right now: OFFLINE (newest candle ${formatAge(ageMs)})`);
+        }
+      } catch {
+        // ignore
+      }
+    };
+    checkStatus();
+    const id = setInterval(checkStatus, 10000);
+    return () => clearInterval(id);
   }, []);
 
   const loadCounts = useCallback(async () => {
@@ -73,7 +110,7 @@ export const OfflineReplayCard: React.FC = () => {
     loadCounts();
   }, [loadCounts]);
 
-  const handleSetMode = async (nextMode: 'live' | 'offline') => {
+  const handleSetMode = async (nextMode: 'auto' | 'live' | 'offline') => {
     setMode(nextMode);
     await setSetting('predLabMode', nextMode);
   };
@@ -150,38 +187,54 @@ export const OfflineReplayCard: React.FC = () => {
     <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 mb-4 shadow-xl">
       {/* Title */}
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-base font-semibold text-white">Prediction Lab: Live or Offline</h3>
+        <h3 className="text-base font-semibold text-white">Prediction Lab mode and offline replay</h3>
         <History className="w-4 h-4 text-cyan-400" />
       </div>
 
       {/* Mode switch */}
       <div className="mb-4">
-        <div className="grid grid-cols-2 gap-2 p-1 bg-slate-950 rounded-2xl border border-slate-800">
+        <div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-2xl border border-slate-800">
+          <button
+            onClick={() => handleSetMode('auto')}
+            className={`py-2 px-2 rounded-xl font-medium text-xs transition text-center ${
+              mode === 'auto'
+                ? 'bg-cyan-500 text-slate-950 font-bold shadow'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Auto (recommended)
+          </button>
           <button
             onClick={() => handleSetMode('live')}
-            className={`py-2 px-3 rounded-xl font-medium text-xs transition ${
+            className={`py-2 px-2 rounded-xl font-medium text-xs transition text-center ${
               mode === 'live'
                 ? 'bg-cyan-500 text-slate-950 font-bold shadow'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            Live (online)
+            Live only
           </button>
           <button
             onClick={() => handleSetMode('offline')}
-            className={`py-2 px-3 rounded-xl font-medium text-xs transition ${
+            className={`py-2 px-2 rounded-xl font-medium text-xs transition text-center ${
               mode === 'offline'
                 ? 'bg-cyan-500 text-slate-950 font-bold shadow'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            Offline replay
+            Offline only
           </button>
         </div>
-        <p className="text-[11px] text-slate-400 mt-2 px-1">
-          {mode === 'live'
-            ? 'Live: Prediction Lab bets on new candles as they arrive (needs the collector and internet).'
-            : 'Offline: no new live bets are made. The replay below uses candles already stored on this phone. No internet or VPN needed.'}
+        <div className="text-[11px] font-mono text-slate-400 mt-2 px-1">
+          {dataStatusText}
+        </div>
+        <p className="text-[11px] text-slate-400 mt-2 px-1 leading-relaxed">
+          {mode === 'auto' &&
+            'Live bets run while fresh data arrives. When data stops (no internet, VPN off, app asleep) no live bets are made, and the miner and replay keep working on stored candles. Live bets resume by themselves when data returns.'}
+          {mode === 'live' &&
+            'Always behaves as live (no offline check).'}
+          {mode === 'offline' &&
+            'No new live bets are made at all.'}
         </p>
       </div>
 

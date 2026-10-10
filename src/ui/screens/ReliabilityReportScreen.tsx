@@ -10,6 +10,7 @@ import { SecondsLabCard } from '../components/SecondsLabCard';
 import { SecondsExportCard } from '../components/SecondsExportCard';
 import { EvidenceSummaryCard } from '../components/EvidenceSummaryCard';
 import { OfflineReplayCard } from '../components/OfflineReplayCard';
+import { PatternMinerCard } from '../components/PatternMinerCard';
 
 const TIMEFRAMES = ['1m', '5m', '15m', '1h', '4h', '1d'];
 
@@ -419,6 +420,7 @@ export const ReliabilityReportScreen: React.FC = () => {
       <SecondsExportCard />
       <EvidenceSummaryCard />
       <OfflineReplayCard />
+      <PatternMinerCard />
     </div>
   );
 };

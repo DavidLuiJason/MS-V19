@@ -145,9 +145,15 @@ async function runCycle(): Promise<void> {
       return;
     }
 
-    const predLabMode = await getSetting<string>('predLabMode', 'live');
+    const predLabMode = await getSetting<string>('predLabMode', 'auto');
     if (predLabMode === 'offline') {
       return;
+    }
+    if (predLabMode === 'auto') {
+      const newestCandle = await db.candles.orderBy('t').last();
+      if (!newestCandle || Date.now() - newestCandle.t > 300000) {
+        return;
+      }
     }
 
     const tracked = await getSetting<string[]>('trackedSymbols', ['BTCUSDT', 'ETHUSDT', 'SOLUSDT']);

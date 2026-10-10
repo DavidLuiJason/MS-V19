@@ -19,6 +19,7 @@ import { getPlatform, getOption } from './data/platformCatalog';
 import { isNativeApp, nativeBridge } from './native/nativeBridge';
 import { logError } from './data/repositories';
 import { startPredictionRunner } from './lib/predictionRunner';
+import { resumeMinerIfEnabled } from './lib/patternMiner';
 
 export default function App() {
   const {
@@ -42,6 +43,10 @@ export default function App() {
 
   useEffect(() => {
     return startPredictionRunner();
+  }, []);
+
+  useEffect(() => {
+    resumeMinerIfEnabled();
   }, []);
 
   useEffect(() => {

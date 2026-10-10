@@ -2,6 +2,9 @@ import { db } from '../data/db';
 import { getSetting } from '../data/repositories';
 import { buildSecLabReport } from '../data/secondsLab';
 import { getArenaReport } from '../data/arena';
+import { breakEven } from '../engine/arena';
+import { getMinerState, getMinerLibrary } from './patternMiner';
+import { libStatus, type LibEntry } from '../engine/miner';
 
 export async function buildEvidenceSummary(): Promise<string> {
   const parts: string[] = [];
@@ -258,6 +261,83 @@ export async function buildEvidenceSummary(): Promise<string> {
           r.boundPts !== null ? (r.boundPts >= 0 ? '+' : '') + r.boundPts.toFixed(1) : '-';
         parts.push(
           `${r.label} | N ${r.N} | win ${(r.winRate * 100).toFixed(1)}% | break-even ${(r.breakEven * 100).toFixed(1)}% | up-share ${(r.alwaysUp * 100).toFixed(1)}% | N_eff ${neffStr} | p ${pStr} | bound ${boundStr} pts | ${r.status}`
+        );
+      }
+    }
+  } catch (err: any) {
+    parts.push('(unavailable: ' + (err?.message || String(err)) + ')');
+  }
+  parts.push('');
+
+  // PATTERN MINER
+  try {
+    parts.push('PATTERN MINER:');
+    const minerState = await getMinerState();
+    const minerLib = await getMinerLibrary();
+    const payoutPct = await getSetting<number>('arenaPayoutPct', 95);
+    const be = breakEven(payoutPct);
+    const K = Math.max(1, minerLib.kKeys.length * 2);
+
+    parts.push(
+      `${minerState.status} | blocks done ${minerState.doneSlices.length} of ${minerState.totalSlices} | jobs ${minerState.jobs} | patterns tested ${minerLib.kKeys.length}`
+    );
+
+    const statusPriority: Record<string, number> = {
+      'SURVIVES TESTING-COUNT (history)': 1,
+      'PROMISING (history)': 2,
+      'NOT PROVEN': 3,
+      'TOO EARLY': 4,
+      'NO EDGE FOUND': 5,
+    };
+
+    const evaluated: Array<{
+      entry: LibEntry;
+      status: string;
+      winRate: number;
+      pValue: number | null;
+      boundPts: number | null;
+    }> = [];
+
+    for (const entry of Object.values(minerLib.entries)) {
+      const st = libStatus(entry, K, be);
+      evaluated.push({
+        entry,
+        status: st.status,
+        winRate: st.winRate,
+        pValue: st.pValue,
+        boundPts: st.boundPts,
+      });
+    }
+
+    evaluated.sort((a, b) => {
+      const pA = statusPriority[a.status] ?? 99;
+      const pB = statusPriority[b.status] ?? 99;
+      if (pA !== pB) return pA - pB;
+      return b.entry.testN - a.entry.testN;
+    });
+
+    const nonEarly = evaluated.filter(
+      (r) => r.status !== 'TOO EARLY' && r.status !== 'NO EDGE FOUND'
+    );
+
+    if (nonEarly.length === 0) {
+      parts.push('no patterns beyond TOO EARLY yet');
+    } else {
+      const rowsToPrint = nonEarly.slice(0, 20);
+      for (const r of rowsToPrint) {
+        const e = r.entry;
+        const pStr =
+          r.pValue !== null
+            ? r.pValue < 0.0001
+              ? '<0.0001'
+              : r.pValue.toFixed(4)
+            : '-';
+        const boundStr =
+          r.boundPts !== null
+            ? (r.boundPts >= 0 ? '+' : '') + r.boundPts.toFixed(1)
+            : '-';
+        parts.push(
+          `${e.typeId} ${e.cat} -> ${e.dir} h${e.h} | tested ${e.testN} | win ${(r.winRate * 100).toFixed(1)}% | break-even ${(be * 100).toFixed(1)}% | blocks above ${e.slicesAbove} of ${e.slices} | p ${pStr} | bound ${boundStr} pts | ${r.status}`
         );
       }
     }
