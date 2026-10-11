@@ -11,19 +11,23 @@ import { SecondsExportCard } from '../components/SecondsExportCard';
 import { EvidenceSummaryCard } from '../components/EvidenceSummaryCard';
 import { OfflineReplayCard } from '../components/OfflineReplayCard';
 import { PatternMinerCard } from '../components/PatternMinerCard';
+import { SectionTabs } from '../components/SectionTabs';
+import { InfoToggle } from '../components/InfoToggle';
+import { ResearchOverview } from '../components/ResearchOverview';
 
 const TIMEFRAMES = ['1m', '5m', '15m', '1h', '4h', '1d'];
 
 export const ReliabilityReportScreen: React.FC = () => {
   const { settings } = useAppStore();
 
+  const [tab, setTab] = useState<string>('overview');
   const [enabled, setEnabled] = useState(false);
   const [selectedSymbols, setSelectedSymbols] = useState<string[]>([]);
   const [selectedTimeframes, setSelectedTimeframes] = useState<string[]>(['5m', '15m']);
 
   const [stats, setStats] = useState<PredictionStatsResult | null>(null);
   const [recent, setRecent] = useState<PredictionRecord[]>([]);
-  const shownRef = useRef(20);
+  const shownRef = useRef(5);
   const [totalCount, setTotalCount] = useState(0);
 
   useEffect(() => {
@@ -169,12 +173,28 @@ export const ReliabilityReportScreen: React.FC = () => {
   return (
     <div className="p-4 space-y-4 pb-20">
       <div>
-        <h2 className="text-xl font-bold text-white tracking-tight mb-1">Reliability Report</h2>
-        <p className="text-xs text-slate-400">Statistical edge and model verification against baseline</p>
+        <h2 className="text-xl font-bold text-white tracking-tight mb-1">Research Lab</h2>
+        <p className="text-xs text-slate-400">Tests whether any method beats break-even. Pick a section below.</p>
       </div>
 
-      {/* Prediction Lab Configuration Card */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-3.5">
+      <SectionTabs
+        tabs={[
+          { id: 'overview', label: 'Overview' },
+          { id: 'live', label: 'Live bets' },
+          { id: 'seconds', label: 'Seconds' },
+          { id: 'replay', label: 'Replay' },
+          { id: 'miner', label: 'Miner' },
+          { id: 'evidence', label: 'Evidence' },
+        ]}
+        active={tab}
+        onChange={setTab}
+      />
+
+      {tab === 'overview' && <ResearchOverview onOpenTab={setTab} />}
+
+      <div hidden={tab !== 'live'} className="space-y-4">
+        {/* Prediction Lab Configuration Card */}
+        <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-3.5">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-base font-bold text-white tracking-tight">Prediction Lab</h3>
@@ -395,32 +415,44 @@ export const ReliabilityReportScreen: React.FC = () => {
           {recent.length < totalCount && (
             <button
               onClick={() => {
-                shownRef.current += 20;
+                shownRef.current += 5;
                 loadData();
               }}
               className="w-full mt-2 py-2.5 rounded-xl border border-slate-800 bg-slate-800/60 text-xs font-bold text-slate-300"
             >
-              Show 20 more
+              Show 5 more
             </button>
           )}
         </div>
       )}
 
       {/* Info Callout */}
-      <div className="bg-slate-900/40 border border-slate-800/60 rounded-2xl p-3.5 flex items-start gap-3 text-xs text-slate-400">
-        <HelpCircle className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
-        <div>
+      <div className="px-1">
+        <InfoToggle>
           Baseline comparisons calculate whether pattern win rates outperform a binomial random entry distribution at 95% confidence intervals.
-        </div>
+        </InfoToggle>
       </div>
 
       <ArenaCard />
-      <SecondsDataCard />
-      <SecondsLabCard />
-      <SecondsExportCard />
-      <EvidenceSummaryCard />
-      <OfflineReplayCard />
-      <PatternMinerCard />
+      </div>
+
+      <div hidden={tab !== 'seconds'} className="space-y-4">
+        <SecondsDataCard />
+        <SecondsLabCard />
+        <SecondsExportCard />
+      </div>
+
+      <div hidden={tab !== 'replay'} className="space-y-4">
+        <OfflineReplayCard />
+      </div>
+
+      <div hidden={tab !== 'miner'} className="space-y-4">
+        <PatternMinerCard />
+      </div>
+
+      <div hidden={tab !== 'evidence'} className="space-y-4">
+        <EvidenceSummaryCard />
+      </div>
     </div>
   );
 };

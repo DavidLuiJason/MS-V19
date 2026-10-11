@@ -4,6 +4,7 @@ import { BinanceAdapter } from '../../collector/exchangeAdapter';
 import { MAX_TRACKED_SYMBOLS, getLongestHeartbeatGap } from '../../data/repositories';
 import { MarketScannerModal } from '../components/MarketScannerModal';
 import { isNativeApp, nativeBridge } from '../../native/nativeBridge';
+import { SectionTabs } from '../components/SectionTabs';
 import {
   ChevronRight,
   Plus,
@@ -36,6 +37,7 @@ function formatGap(ms: number | null): string {
 export const SettingsScreen: React.FC = () => {
   const { settings, updateSettings } = useAppStore();
 
+  const [setTab, setSetTab] = useState<string>('markets');
   const [showSymbolsSheet, setShowSymbolsSheet] = useState(false);
   const [showScannerModal, setShowScannerModal] = useState(false);
   const [newSymbolInput, setNewSymbolInput] = useState('');
@@ -153,6 +155,17 @@ export const SettingsScreen: React.FC = () => {
         <p className="text-xs text-slate-400">Data source, collection rules, and safety parameters</p>
       </div>
 
+      <SectionTabs
+        tabs={[
+          { id: 'markets', label: 'Markets' },
+          { id: 'safety', label: 'Safety' },
+          { id: 'background', label: 'Background' },
+        ]}
+        active={setTab}
+        onChange={setSetTab}
+      />
+
+      <div hidden={setTab !== 'markets'} className="space-y-4">
       {/* 1. Markets Section */}
       <div className="space-y-2">
         <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-1">
@@ -244,7 +257,9 @@ export const SettingsScreen: React.FC = () => {
           </div>
         </div>
       </div>
+      </div>
 
+      <div hidden={setTab !== 'safety'} className="space-y-4">
       {/* Safety Limits Section (Numeric, Stored only) */}
       <div className="space-y-2">
         <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-1">
@@ -285,7 +300,9 @@ export const SettingsScreen: React.FC = () => {
           </div>
         </div>
       </div>
+      </div>
 
+      <div hidden={setTab !== 'background'} className="space-y-4">
       {/* 4. Background Collection Section */}
       <div className="space-y-2">
         <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-1">
@@ -399,6 +416,7 @@ export const SettingsScreen: React.FC = () => {
             </p>
           </div>
         </div>
+      </div>
       </div>
 
       {/* Tracked Symbols Sheet */}

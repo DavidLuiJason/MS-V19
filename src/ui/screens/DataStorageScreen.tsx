@@ -15,6 +15,7 @@ import { saveAndShareFile, exportCandlesCsvInChunks, saveBlobChunked } from '../
 import { exportPatternsZip, PATTERN_REPORTS, type PatternReport } from '../../lib/patternExport';
 import { workerClient } from '../../collector/workerClient';
 import { db, type CollectorLogRecord } from '../../data/db';
+import { SectionTabs } from '../components/SectionTabs';
 import {
   Database,
   CheckCircle2,
@@ -58,6 +59,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 export const DataStorageScreen: React.FC = () => {
   const { collectorState, isPaused, gapsVersion, settings, historyProgress } = useAppStore();
 
+  const [dsTab, setDsTab] = useState<string>('health');
   const [stats, setStats] = useState({
     ticksCount: 0,
     quoteBarsCount: 0,
@@ -307,11 +309,22 @@ export const DataStorageScreen: React.FC = () => {
     <div className="p-4 space-y-4 pb-20">
       <div>
         <h2 className="text-xl font-bold text-white tracking-tight mb-1">Data & Storage</h2>
-        <p className="text-xs text-slate-400">Database health, candle gap repair, import & export</p>
+        <p className="text-xs text-slate-400">Health, backup and restore, history download</p>
       </div>
 
-      {/* 1. Collection Health */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-3">
+      <SectionTabs
+        tabs={[
+          { id: 'health', label: 'Health' },
+          { id: 'backup', label: 'Backup' },
+          { id: 'history', label: 'History' },
+        ]}
+        active={dsTab}
+        onChange={setDsTab}
+      />
+
+      <div hidden={dsTab !== 'health'} className="space-y-4">
+        {/* 1. Collection Health */}
+        <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div
@@ -430,6 +443,21 @@ export const DataStorageScreen: React.FC = () => {
         )}
       </div>
 
+      {/* 4. Sync Status */}
+      <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 shadow-xl flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center text-slate-400">
+            <CloudOff className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-xs text-slate-400 font-medium">Sync Status</div>
+            <div className="text-sm font-bold text-white">Not configured (local only)</div>
+          </div>
+        </div>
+      </div>
+      </div>
+
+      <div hidden={dsTab !== 'backup'} className="space-y-4">
       {/* 3. Storage Used */}
       <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-3">
         <div className="flex items-center justify-between">
@@ -521,7 +549,9 @@ export const DataStorageScreen: React.FC = () => {
           </div>
         </div>
       )}
+      </div>
 
+      <div hidden={dsTab !== 'history'} className="space-y-4">
       {/* Download Past Charts */}
       <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-4">
         <div>
@@ -757,18 +787,6 @@ export const DataStorageScreen: React.FC = () => {
           </button>
         )}
       </div>
-
-      {/* 4. Sync Status */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 shadow-xl flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center text-slate-400">
-            <CloudOff className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="text-xs text-slate-400 font-medium">Sync Status</div>
-            <div className="text-sm font-bold text-white">Not configured (local only)</div>
-          </div>
-        </div>
       </div>
 
       {/* Export Options Modal Sheet */}
