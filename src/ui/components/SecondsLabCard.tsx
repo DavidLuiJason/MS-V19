@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Zap } from 'lucide-react';
 import { buildSecLabReport, type SecLabReport } from '../../data/secondsLab';
 import { getSetting, setSetting } from '../../data/repositories';
+import { InfoToggle } from './InfoToggle';
 
 interface SecLabSetting {
   enabled: boolean;
@@ -14,7 +15,7 @@ interface SecLabPayoutsSetting {
   p30: number;
 }
 
-const FINDER_ORDER = ['coin', 'mom5', 'rev5', 'flow10'];
+const FINDER_ORDER = ['coin', 'mom5', 'rev5', 'flow10', 'run3', 'mom60'];
 
 export const SecondsLabCard: React.FC = () => {
   const [enabled, setEnabled] = useState<boolean>(true);
@@ -189,9 +190,9 @@ export const SecondsLabCard: React.FC = () => {
       </div>
 
       {/* Notice text */}
-      <div className="text-[11px] text-slate-400">
-        Win rule: Up wins if the price is higher at the end. Spread Rush&apos;s extra spread condition is not modelled. Binance prices, not Cwallet&apos;s.
-      </div>
+      <InfoToggle>
+        Win rule: Up wins if the price is higher at the end. Spread Rush&apos;s extra spread condition is not modelled. Binance prices, not Cwallet&apos;s. 60-second bets use the 30-second payout (assumed; Cwallet&apos;s 60-second payout is not confirmed). run3 = bet the same direction after 3 one-second rises or falls in a row. mom60 = bet the same direction as the last 60 seconds.
+      </InfoToggle>
 
       {/* Stats summary & Exclusion line */}
       {report && (

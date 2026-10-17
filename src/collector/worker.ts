@@ -779,7 +779,7 @@ function secLabOnSecond(sym: string, c: SecondCandleRecord) {
   }
   if (ring.length > 0 && c.t <= ring[ring.length - 1].t) return;
   ring.push(c);
-  while (ring.length > 12) {
+  while (ring.length > 62) {
     ring.shift();
   }
 
@@ -850,11 +850,16 @@ function secLabOnSecond(sym: string, c: SecondCandleRecord) {
 
   // 3. Decide only if c.t % 60000 === 59000
   if (c.t % 60000 !== 59000) return;
-  if (ring.length < 11) return;
-  const w = ring.slice(ring.length - 11);
-  for (let i = 1; i < 11; i++) {
-    if (w[i].t !== w[i - 1].t + 1000) return;
+  let w11Ok = ring.length >= 11;
+  if (w11Ok) {
+    for (let i = ring.length - 10; i < ring.length; i++) {
+      if (ring[i].t !== ring[i - 1].t + 1000) {
+        w11Ok = false;
+        break;
+      }
+    }
   }
+  const w = w11Ok ? ring.slice(ring.length - 11) : [];
 
   const entryObsT = c.t + 1000;
   const decisionT = Date.now();
@@ -864,46 +869,75 @@ function secLabOnSecond(sym: string, c: SecondCandleRecord) {
   // 4. Directions
   const finderDirs: { finderId: string; dir: 'up' | 'down' }[] = [];
 
-  // coin: 'up' if Math.random() < 0.5 else 'down'.
-  finderDirs.push({
-    finderId: 'coin',
-    dir: Math.random() < 0.5 ? 'up' : 'down',
-  });
+  if (w11Ok) {
+    // coin: 'up' if Math.random() < 0.5 else 'down'.
+    finderDirs.push({
+      finderId: 'coin',
+      dir: Math.random() < 0.5 ? 'up' : 'down',
+    });
 
-  // mom5: d = w[10].c - w[5].c; 'up' if d > 0, 'down' if d < 0, no bet if d === 0.
-  const dMom5 = w[10].c - w[5].c;
-  if (dMom5 > 0) {
-    finderDirs.push({ finderId: 'mom5', dir: 'up' });
-  } else if (dMom5 < 0) {
-    finderDirs.push({ finderId: 'mom5', dir: 'down' });
-  }
-
-  // rev5: the opposite of mom5 (no bet if d === 0).
-  if (dMom5 > 0) {
-    finderDirs.push({ finderId: 'rev5', dir: 'down' });
-  } else if (dMom5 < 0) {
-    finderDirs.push({ finderId: 'rev5', dir: 'up' });
-  }
-
-  // flow10: over w[1]..w[10], if any candle has tbv undefined or the volume sum is 0 -> no bet; share = sum(tbv) / sum(v); 'up' if share >= 0.55, 'down' if share <= 0.45, otherwise no bet.
-  let flowValid = true;
-  let sumTbv = 0;
-  let sumVol = 0;
-  for (let i = 1; i <= 10; i++) {
-    const item = w[i];
-    if (item.tbv === undefined || item.tbv === null) {
-      flowValid = false;
-      break;
+    // mom5: d = w[10].c - w[5].c; 'up' if d > 0, 'down' if d < 0, no bet if d === 0.
+    const dMom5 = w[10].c - w[5].c;
+    if (dMom5 > 0) {
+      finderDirs.push({ finderId: 'mom5', dir: 'up' });
+    } else if (dMom5 < 0) {
+      finderDirs.push({ finderId: 'mom5', dir: 'down' });
     }
-    sumTbv += item.tbv;
-    sumVol += item.v;
+
+    // rev5: the opposite of mom5 (no bet if d === 0).
+    if (dMom5 > 0) {
+      finderDirs.push({ finderId: 'rev5', dir: 'down' });
+    } else if (dMom5 < 0) {
+      finderDirs.push({ finderId: 'rev5', dir: 'up' });
+    }
+
+    // flow10: over w[1]..w[10], if any candle has tbv undefined or the volume sum is 0 -> no bet; share = sum(tbv) / sum(v); 'up' if share >= 0.55, 'down' if share <= 0.45, otherwise no bet.
+    let flowValid = true;
+    let sumTbv = 0;
+    let sumVol = 0;
+    for (let i = 1; i <= 10; i++) {
+      const item = w[i];
+      if (item.tbv === undefined || item.tbv === null) {
+        flowValid = false;
+        break;
+      }
+      sumTbv += item.tbv;
+      sumVol += item.v;
+    }
+    if (flowValid && sumVol > 0) {
+      const share = sumTbv / sumVol;
+      if (share >= 0.55) {
+        finderDirs.push({ finderId: 'flow10', dir: 'up' });
+      } else if (share <= 0.45) {
+        finderDirs.push({ finderId: 'flow10', dir: 'down' });
+      }
+    }
+
+    const r1 = w[10].c - w[9].c;
+    const r2 = w[9].c - w[8].c;
+    const r3 = w[8].c - w[7].c;
+    if (r1 > 0 && r2 > 0 && r3 > 0) {
+      finderDirs.push({ finderId: 'run3', dir: 'up' });
+    } else if (r1 < 0 && r2 < 0 && r3 < 0) {
+      finderDirs.push({ finderId: 'run3', dir: 'down' });
+    }
   }
-  if (flowValid && sumVol > 0) {
-    const share = sumTbv / sumVol;
-    if (share >= 0.55) {
-      finderDirs.push({ finderId: 'flow10', dir: 'up' });
-    } else if (share <= 0.45) {
-      finderDirs.push({ finderId: 'flow10', dir: 'down' });
+
+  let w61Ok = ring.length >= 61;
+  if (w61Ok) {
+    for (let i = ring.length - 60; i < ring.length; i++) {
+      if (ring[i].t !== ring[i - 1].t + 1000) {
+        w61Ok = false;
+        break;
+      }
+    }
+  }
+  if (w61Ok) {
+    const d60 = ring[ring.length - 1].c - ring[ring.length - 61].c;
+    if (d60 > 0) {
+      finderDirs.push({ finderId: 'mom60', dir: 'up' });
+    } else if (d60 < 0) {
+      finderDirs.push({ finderId: 'mom60', dir: 'down' });
     }
   }
 

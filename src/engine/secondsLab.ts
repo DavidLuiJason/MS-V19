@@ -1,5 +1,5 @@
-export const SL_FINDERS = ['coin', 'mom5', 'rev5', 'flow10'] as const;
-export const SL_HORIZONS = [5, 15, 30] as const;
+export const SL_FINDERS = ['coin', 'mom5', 'rev5', 'flow10', 'run3', 'mom60'] as const;
+export const SL_HORIZONS = [5, 15, 30, 60] as const;
 export const SL_VERSION = 'v1';
 export const SL_MAX_DELAY_MS = 2000;
 
